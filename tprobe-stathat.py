@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
-from requests import *
+import requests
 import json
 from datetime import datetime
 import config # program variable config file. Should be located in the same directory as us
+from stathat import StatHat
+from time import sleep
 
 class tempProbe(object):
     def __init__(self, probeID, name):
@@ -17,10 +19,9 @@ class tempProbe(object):
     def readTemp(self):
         with open(self.URI,'rb') as file:
             text = file.read()
-            self.measurementTime = datetime.now()
             ''' The text output from the probe looks like this:
-                4a 01 4b 46 7f ff 06 10 f7 : crc=f7 YES
-                4a 01 4b 46 7f ff 06 10 f7 t=20625
+            4a 01 4b 46 7f ff 06 10 f7 : crc=f7 YES
+            4a 01 4b 46 7f ff 06 10 f7 t=20625
             '''
             lines = text.split('\n')
             # Read the last word of the first line to see if the CRC check passed
@@ -31,7 +32,6 @@ class tempProbe(object):
                 self.curTemp = ((self.rawTemp / 1000.0) * 1.8) + 32.0
                 return True
             else:
-                self.curTemp = ''
                 return False
 
     def __str__(self):
@@ -47,38 +47,29 @@ class tempProbe(object):
 def getTemps():
     probeList = []
     for probe in config.PROBE_LIST:
-        # print probe
         probeList.append(tempProbe(probe[0],probe[1]))
 
-    ''' Go through the probe list, take a measurement, and store it in the dict
-        Post a JSON structure to http://api.stathat.com/ez
-        Must be in the form:
-        {
-            "ezkey": "robert@horners.org",
-            "data": [
-                {"stat": "basement", "value": 63.9},
-                {"stat": "attic", "value": 85.2},
-                {"stat": "outdoor", "value": 23.5},
-                {"stat": "last_probe", "value": 70.732, "t": 1363118126},
-            ]
-        }
-    '''
-    currentReadings = {'ezkey': config.EZKEY,
-                       'data':[]}
+    currentReadings = []
+
     for probe in probeList:
         result = {}
         if probe.readTemp():
-            # print '%s: %s: %.1f' % (probe.measurementTime.strftime(config.TIME_FMT), probe.name, probe.curTemp)
             result['stat'] = probe.name
             result['value'] = '%.1f' % probe.curTemp
-            currentReadings['data'].append(result)
+            result['t'] = datetime.now()
+            currentReadings.append(result)
+        #print 'Probe: %s' % probe
 
-    return json.dumps(currentReadings, indent=2)
+    return currentReadings
 
 
 if __name__ == '__main__':
 
-    url = "http://api.stathat.com/ez"
-    data = getTemps()
-    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-    r = requests.post(url, data=json.dumps(data), headers=headers)
+    stats = StatHat(config.EZKEY)
+
+    while True :
+        measurements = getTemps()
+        for probe in measurements:
+            stats.value(probe['stat'], probe['value'])
+        sleep(300)
+
