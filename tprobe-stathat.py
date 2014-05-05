@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import requests
+import logging
 import json
 from datetime import datetime
 import config # program variable config file. Should be located in the same directory as us
@@ -62,14 +63,15 @@ def getTemps():
 
     return currentReadings
 
+# mylogs = logging.getLogger('tprobe')
+# mylogs.setLevel(logging.INFO)
+# log_file_handler = logging.FileHandler('/var/log/tprobe.log')
 
 if __name__ == '__main__':
 
     stats = StatHat(config.EZKEY)
 
-    while True :
-        measurements = getTemps()
-        for probe in measurements:
-            stats.value(probe['stat'], probe['value'])
-        sleep(300)
+    measurements = getTemps()
+    for probe in measurements:
+        stats.value(probe['stat'], probe['value'])
 
