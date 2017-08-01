@@ -63,11 +63,9 @@ def getTemps():
 
     return currentReadings
 
-# mylogs = logging.getLogger('tprobe')
-# mylogs.setLevel(logging.INFO)
-# log_file_handler = logging.FileHandler('/var/log/tprobe.log')
 
 if __name__ == '__main__':
+    from flup.server.fcgi import WSGIServer
 
     stats = StatHat(config.EZKEY)
 
@@ -75,3 +73,14 @@ if __name__ == '__main__':
     for probe in measurements:
         stats.value(probe['stat'], probe['value'])
 
+
+# import flup
+#
+# def myapp(environ, start_response):
+#     print 'got request: %s' % environ
+#     start_response('200 OK', [('Content-Type', 'text/plain')])
+#     return ['Hello World!']
+#
+# if __name__ == '__main__':
+#     from flup.server.fcgi import WSGIServer
+#     WSGIServer(myapp).run()
