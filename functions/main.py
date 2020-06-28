@@ -1,6 +1,8 @@
 from google.cloud import bigquery
 import base64, json, sys, os
 
+# Comment here
+
 def pubsub_to_bigq(event, context):
    pubsub_message = json.loads(base64.b64decode(event['data']).decode('utf-8'))
    for entry in pubsub_message["data"]:
