@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import datetime as dt
 import requests
 
@@ -26,5 +27,6 @@ units = "imperial"
 requestURL = f'{postTimelineURL}?location={location}&fields={fields}&timesteps={timesteps}&units={units}&apikey={apikey}'
 response = requests.get(requestURL)
 data = response.json()
+#print(data)
 currentTemp = data["data"]["timelines"][0]["intervals"][0]["values"]["temperature"]
 print(currentTemp)

@@ -5,7 +5,8 @@ import jwt
 import paho.mqtt.client as mqtt
 import json
 from pprint import pprint
-import datetime
+import datetime as dt
+import requests
 import config # This program's config.py file. Must be located in the same directory
 
 
@@ -19,15 +20,28 @@ project_id = 'home-project-165818'
 gcp_location = 'us-central1'
 registry_id = 'tempsensors'
 device_id = 'tprobe-001'
+# set the Timeline API POST endpoint as the target URL
+postTimelineURL = "https://api.tomorrow.io/v4/timelines"
+# get your key from app.tomorrow.io/development/keys
+apikey = "o7gop75AFgDkBb4avlJizGYC4YqZyHBz"
+# pick the location, as a latlong pair
+location = "39.5692011,-104.9452509"
+# list the fields
+fields = "temperature"
+# choose the unit system, either metric or imperial
+units = "imperial"
+# set the timesteps, like "current", "1h" and "1d"
+timesteps = "current"
+units = "imperial"
 
 # end of user-variables
 
-cur_time = datetime.datetime.utcnow()
+cur_time = dt.datetime.utcnow()
 
 def create_jwt():
   token = {
       'iat': cur_time,
-      'exp': cur_time + datetime.timedelta(minutes=60),
+      'exp': cur_time + dt.timedelta(minutes=60),
       'aud': project_id
   }
 
@@ -51,7 +65,7 @@ class tempProbe(object):
     def readTemp(self):
         with open(self.URI,'rb') as file:
             text = file.read()
-            self.measurementTime = datetime.datetime.now()
+            self.measurementTime = dt.datetime.now()
             ''' The text output from the probe looks like this:
                 4a 01 4b 46 7f ff 06 10 f7 : crc=f7 YES
                 4a 01 4b 46 7f ff 06 10 f7 t=20625
@@ -75,8 +89,13 @@ class tempProbe(object):
         self.readTemp()
         return '%s(%s(%s): %.1f)' % (self.__class__.__name__, self.name, self.ID,  self.curTemp)
 
+# Get the current temperature for this location from tomorrow.io
+requestURL = f'{postTimelineURL}?location={location}&fields={fields}&timesteps={timesteps}&units={units}&apikey={apikey}'
+response = requests.get(requestURL)
+data = response.json()
+currentWebTemp = data["data"]["timelines"][0]["intervals"][0]["values"]["temperature"]
 
-    # Build a list of probe objects from the config file
+# Build a list of probe objects from the config file
 
 def getTemps():
     probeList = []
@@ -104,7 +123,7 @@ def getTemps():
 
     result = []
     entry = {}
-    entry["ts"] = datetime.datetime.timestamp(datetime.datetime.now())
+    entry["ts"] = dt.datetime.timestamp(dt.datetime.now())
     entry["measurements"] = []
     for probe in probeList:
         if probe.readTemp():
@@ -112,7 +131,14 @@ def getTemps():
             reading["locationID"] = probe.name
             reading["temperatureF"] = float('%.1f' % probe.curTemp)
             entry["measurements"].append(reading)
+    reading = {}
+    reading["locationID"] = "webtemp"
+    reading["temperatureF"] = currentWebTemp
+    entry["measurements"].append(reading)
     result.append(entry)
+
+    # Insert the current temp from web reading
+
 
     # Return data as json
     pprint(result)
