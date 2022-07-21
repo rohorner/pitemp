@@ -27,6 +27,6 @@ units = "imperial"
 requestURL = f'{postTimelineURL}?location={location}&fields={fields}&timesteps={timesteps}&units={units}&apikey={apikey}'
 response = requests.get(requestURL)
 data = response.json()
-#print(data)
+print(data)
 currentTemp = data["data"]["timelines"][0]["intervals"][0]["values"]["temperature"]
 print(currentTemp)

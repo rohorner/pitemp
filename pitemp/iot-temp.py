@@ -20,21 +20,10 @@ project_id = 'home-project-165818'
 gcp_location = 'us-central1'
 registry_id = 'tempsensors'
 device_id = 'tprobe-001'
-# set the Timeline API POST endpoint as the target URL
-postTimelineURL = "https://api.tomorrow.io/v4/timelines"
-# get your key from app.tomorrow.io/development/keys
-apikey = "o7gop75AFgDkBb4avlJizGYC4YqZyHBz"
-# pick the location, as a latlong pair
-location = "39.5692011,-104.9452509"
-# list the fields
-fields = "temperature"
-# choose the unit system, either metric or imperial
-units = "imperial"
-# set the timesteps, like "current", "1h" and "1d"
-timesteps = "current"
-units = "imperial"
-
 # end of user-variables
+
+_CLIENT_ID = 'projects/{}/locations/{}/registries/{}/devices/{}'.format(project_id, gcp_location, registry_id, device_id)
+_MQTT_TOPIC = '/devices/{}/events'.format(device_id)
 
 cur_time = dt.datetime.utcnow()
 
@@ -49,9 +38,6 @@ def create_jwt():
     private_key = f.read()
 
   return jwt.encode(token, private_key, ssl_algorithm)
-
-_CLIENT_ID = 'projects/{}/locations/{}/registries/{}/devices/{}'.format(project_id, gcp_location, registry_id, device_id)
-_MQTT_TOPIC = '/devices/{}/events'.format(device_id)
 
 class tempProbe(object):
     def __init__(self, probeID, name):
@@ -70,6 +56,7 @@ class tempProbe(object):
                 4a 01 4b 46 7f ff 06 10 f7 : crc=f7 YES
                 4a 01 4b 46 7f ff 06 10 f7 t=20625
             '''
+            print("readTemp found lines %s" % text)
             lines = text.decode().split('\n')
             # Read the last word of the first line to see if the CRC check passed
             if lines[0].split()[-1] == 'YES':
@@ -90,17 +77,26 @@ class tempProbe(object):
         return '%s(%s(%s): %.1f)' % (self.__class__.__name__, self.name, self.ID,  self.curTemp)
 
 # Get the current temperature for this location from tomorrow.io
-requestURL = f'{postTimelineURL}?location={location}&fields={fields}&timesteps={timesteps}&units={units}&apikey={apikey}'
-response = requests.get(requestURL)
-data = response.json()
-currentWebTemp = data["data"]["timelines"][0]["intervals"][0]["values"]["temperature"]
+observationURL = "https://api.weather.gov/stations/KAPA/observations/latest"
+
+def CtoF(tempC):
+  return float("{:.1f}".format((tempC*9/5)+32.0))
+
+response = requests.get(observationURL)
+if response.status_code == 200:
+  data = response.json()
+  #pprint(data)
+  currentWebTemp = data["properties"]["temperature"]["value"]
+  print(CtoF(float(currentWebTemp)))
+else:
+  print("weather.gov returned status %s" % response.status_code)
 
 # Build a list of probe objects from the config file
 
 def getTemps():
     probeList = []
     for probe in config.PROBE_LIST:
-        # print probe
+        print(probe)
         probeList.append(tempProbe(probe[0],probe[1]))
 
     ''' Go through the probe list, take a measurement, and store it in the dict
@@ -126,14 +122,15 @@ def getTemps():
     entry["ts"] = dt.datetime.timestamp(dt.datetime.now())
     entry["measurements"] = []
     for probe in probeList:
+        print("reading temp from %s" % probe)
         if probe.readTemp():
             reading = {}
             reading["locationID"] = probe.name
             reading["temperatureF"] = float('%.1f' % probe.curTemp)
             entry["measurements"].append(reading)
     reading = {}
-    reading["locationID"] = "webtemp"
-    reading["temperatureF"] = currentWebTemp
+    reading["locationID"] = "web"
+    reading["temperatureF"] = CtoF(float(currentWebTemp))
     entry["measurements"].append(reading)
     result.append(entry)
 
