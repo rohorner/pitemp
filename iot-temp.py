@@ -13,9 +13,9 @@ import config # This program's config.py file. Must be located in the same direc
 # Define some project-based variables to be used below. This should be the only
 # block of variables that you need to edit in order to run this script
 
-ssl_private_key_filepath = '/home/pi/demo_private.pem'
+ssl_private_key_filepath = '/home/rhorner/pitemp/pitemp/demo_private.pem'
 ssl_algorithm = 'RS256' # Either RS256 or ES256
-root_cert_filepath = '/home/pi/roots.pem'
+root_cert_filepath = '/home/rhorner/pitemp/pitemp/roots.pem'
 project_id = 'home-project-165818'
 gcp_location = 'us-central1'
 registry_id = 'tempsensors'
@@ -56,7 +56,7 @@ class tempProbe(object):
                 4a 01 4b 46 7f ff 06 10 f7 : crc=f7 YES
                 4a 01 4b 46 7f ff 06 10 f7 t=20625
             '''
-            print("readTemp found lines %s" % text)
+            #print("readTemp found lines %s" % text)
             lines = text.decode().split('\n')
             # Read the last word of the first line to see if the CRC check passed
             if lines[0].split()[-1] == 'YES':
@@ -87,7 +87,7 @@ if response.status_code == 200:
   data = response.json()
   #pprint(data)
   currentWebTemp = data["properties"]["temperature"]["value"]
-  print(CtoF(float(currentWebTemp)))
+  #print(CtoF(float(currentWebTemp)))
 else:
   print("weather.gov returned status %s" % response.status_code)
 
@@ -96,7 +96,7 @@ else:
 def getTemps():
     probeList = []
     for probe in config.PROBE_LIST:
-        print(probe)
+        #print(probe)
         probeList.append(tempProbe(probe[0],probe[1]))
 
     ''' Go through the probe list, take a measurement, and store it in the dict
@@ -122,7 +122,7 @@ def getTemps():
     entry["ts"] = dt.datetime.timestamp(dt.datetime.now())
     entry["measurements"] = []
     for probe in probeList:
-        print("reading temp from %s" % probe)
+        #print("reading temp from %s" % probe)
         if probe.readTemp():
             reading = {}
             reading["locationID"] = probe.name
@@ -145,7 +145,7 @@ def getTemps():
 if __name__ == '__main__':
 
     tempdata = getTemps()
-    #pprint(json.dumps(tempdata))
+    pprint(json.dumps(tempdata))
 
     client = mqtt.Client(client_id=_CLIENT_ID)
     # authorization is handled purely with JWT, no user/pass, so username can be whatever
